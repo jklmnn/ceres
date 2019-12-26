@@ -5,11 +5,16 @@ CC ?= gcc
 initramfs.cpio.gz: $(BUILD_DIR)/bin/init
 	cd $(BUILD_DIR) && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../initramfs.cpio.gz
 
-$(BUILD_DIR)/bin: $(BUILD_DIR)
+$(BUILD_DIR)/bin:
 	mkdir -p $(BUILD_DIR)/bin
 
-$(BUILD_DIR)/bin/init: $(BUILD_DIR)/bin src/*.c
-	$(CC) $(filter-out $<,$^) -std=gnu99 -Isrc -o $</init -ldl -Wl,-O3 -Wl,--as-needed -static
+$(BUILD_DIR)/bin/init: runtime $(BUILD_DIR)/bin
+	cd gneiss && gprbuild -P gneiss.gpr -XPLATFORM=linux -XKIND=static -XTEST=init; cd ..
+	cp -u gneiss/build/init/init $(BUILD_DIR)/bin/init
+
+.PHONY: runtime
+runtime:
+	make -C gneiss/ada-runtime
 
 .PHONY: bzImage
 bzImage:
@@ -22,4 +27,6 @@ run: initramfs.cpio.gz bzImage
 
 .PHONY: clean
 clean:
-	rm -rf initramfs.cpio.gz $(BUILD_DIR)
+	rm -rfv initramfs.cpio.gz $(BUILD_DIR) gneiss/build
+	make -C linux clean
+	make -C gneiss/ada-runtime clean
